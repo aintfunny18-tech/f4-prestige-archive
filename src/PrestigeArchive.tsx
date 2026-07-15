@@ -171,6 +171,21 @@ const entries: Entry[] = [
 
 const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
+function locationFromHash() {
+  const raw = window.location.hash.slice(1);
+  if (!raw) return { route: "home", section: null as string | null };
+
+  const [route, section] = raw.split("/", 2);
+  if (route === "vorn" || byId.has(route)) {
+    return { route, section: section || null };
+  }
+
+  const legacyEntry = entries.find((entry) => raw.startsWith(`${entry.id}-`));
+  return legacyEntry
+    ? { route: legacyEntry.id, section: raw }
+    : { route: "home", section: null };
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -306,7 +321,9 @@ function sectionLinks(body: string, prefix: string) {
 }
 
 export function PrestigeArchive() {
-  const [route, setRoute] = useState("home");
+  const initialLocation = locationFromHash();
+  const [route, setRoute] = useState(initialLocation.route);
+  const [section, setSection] = useState(initialLocation.section);
   const [source, setSource] = useState("");
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -315,15 +332,31 @@ export function PrestigeArchive() {
     const hash = next === "home" ? "" : `#${next}`;
     window.history.pushState(null, "", `${window.location.pathname}${hash}`);
     setRoute(next);
+    setSection(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const navigateToSection = useCallback((nextSection: string) => {
+    if (!byId.has(route)) return;
+    window.history.pushState(null, "", `${window.location.pathname}#${route}/${nextSection}`);
+    setSection(nextSection);
+    document.getElementById(nextSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [route]);
+
   useEffect(() => {
-    const syncHash = () => setRoute(window.location.hash.slice(1) || "home");
+    const syncHash = () => {
+      const next = locationFromHash();
+      setRoute(next.route);
+      setSection(next.section);
+    };
     syncHash();
     window.addEventListener("hashchange", syncHash);
+    window.addEventListener("popstate", syncHash);
     fetch(asset("prestige-classes.md")).then((response) => response.text()).then(setSource);
-    return () => window.removeEventListener("hashchange", syncHash);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("popstate", syncHash);
+    };
   }, []);
 
   useEffect(() => {
@@ -339,6 +372,14 @@ export function PrestigeArchive() {
   const activeEntry = byId.get(route);
   const parsed = useMemo(() => activeEntry ? extractSource(source, activeEntry) : null, [source, activeEntry]);
   const toc = useMemo(() => activeEntry && parsed ? sectionLinks(parsed.body, activeEntry.id) : [], [activeEntry, parsed]);
+
+  useEffect(() => {
+    if (!section || !activeEntry || !parsed) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [section, activeEntry, parsed]);
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -407,7 +448,7 @@ export function PrestigeArchive() {
           <div className="class-layout">
             <aside className="toc" aria-label="On this page">
               <span className="toc-title">On this page</span>
-              <nav>{toc.map((item) => <a key={item.id} href={`#${item.id}`}>{item.title}</a>)}</nav>
+              <nav>{toc.map((item) => <button key={item.id} type="button" onClick={() => navigateToSection(item.id)}>{item.title}</button>)}</nav>
             </aside>
 
             <div className="rules-column">
