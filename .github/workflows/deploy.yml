@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb5ef0fe4f9f7211c2f8e2223c81729c992 # v7
+      - name: Set up Node
+        uses: actions/setup-node@48b55a5fd1d8f715d8fcf2c1cb099d72911c6798 # v6
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe643559c5346111009c17c3b2560c109d65f # v6
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc32459b621f9424116f34e36ac40c111733c9a6 # v5
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8c5a15b4755db2f8421803e4f3d13c65859 # v5
