@@ -73,6 +73,13 @@
   <script src="./data/driver.js"></script>
   <script src="./data/distraction.js"></script>
   <script src="./data/pickpocket.js"></script>
+  <script>
+    const approvedCleaner = window.HEIST_CREW_DATA.crew.find(member => member.key === "cleaner");
+    if (approvedCleaner) {
+      approvedCleaner.portrait = "portraits/approved-cleaner.svg";
+      approvedCleaner.visual = "Black Reborn woman of subtly elven ancestry, with close braids, haunted eyes, faint deathless seams, restrained medical-monastic clothing, and a calm forensic presence.";
+    }
+  </script>
   <script src="./app.js"></script>
 </body>
 </html>
