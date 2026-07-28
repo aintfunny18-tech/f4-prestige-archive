@@ -1,0 +1,30 @@
+name: Validate Heist Crew Archive
+
+on:
+  pull_request:
+    paths:
+      - "public/heist-crew-archive/**"
+      - ".github/workflows/heist-crew-archive-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Verify archive output
+        run: |
+          test -f dist/heist-crew-archive/index.html
+          test -f dist/heist-crew-archive/app.js
+          test -f dist/heist-crew-archive/styles.css
+          test "$(find dist/heist-crew-archive/portraits -name '*.svg' | wc -l)" -eq 8
+          test "$(find dist/heist-crew-archive/data -name '*.js' | wc -l)" -eq 8
+          grep -q "No Active Operation" dist/heist-crew-archive/index.html
